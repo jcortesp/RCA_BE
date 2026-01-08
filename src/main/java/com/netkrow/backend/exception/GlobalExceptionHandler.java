@@ -1,46 +1,47 @@
 package com.netkrow.backend.exception;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Map;
+import java.sql.SQLException;
 
+/**
+ * Manejo global de errores.
+ *
+ * MVP:
+ * - Devuelve JSON estándar: { status, message }
+ * - No depende de JPA ni de spring-dao (por eso NO usamos DataIntegrityViolationException).
+ */
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    /**
-     * Maneja las ResponseStatusException (p. ej. los
-     * lanzados en RemissionService.create cuando ya existe el ID)
-     */
     @ExceptionHandler(ResponseStatusException.class)
-    public ResponseEntity<Map<String,String>> handleResponseStatus(ResponseStatusException ex) {
-        return ResponseEntity
-                .status(ex.getStatusCode())
-                .body(Map.of("message", ex.getReason()));
+    public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex) {
+        String msg = ex.getReason() != null ? ex.getReason() : "Error";
+        int code = ex.getStatusCode().value();
+        return ResponseEntity.status(code).body(new ErrorResponse(code, msg));
     }
 
-    /**
-     * Maneja violaciones de integridad a nivel de BD (índice único),
-     * por si acaso se produjera un DataIntegrityViolationException.
-     */
-    @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<Map<String,String>> handleDataIntegrity(DataIntegrityViolationException ex) {
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(Map.of("message", "Ya existe una remisión con ese ID"));
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
+        int code = HttpStatus.BAD_REQUEST.value();
+        String msg = "Request inválido: valida los campos requeridos.";
+        return ResponseEntity.status(code).body(new ErrorResponse(code, msg));
     }
 
-    /**
-     * Caída de respaldo para excepciones no previstas.
-     */
+    @ExceptionHandler(SQLException.class)
+    public ResponseEntity<ErrorResponse> handleSql(SQLException ex) {
+        int code = HttpStatus.BAD_GATEWAY.value();
+        return ResponseEntity.status(code).body(new ErrorResponse(code, "Oracle error: " + ex.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String,String>> handleAll(Exception ex) {
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("message", "Error interno del servidor"));
+    public ResponseEntity<ErrorResponse> handleAll(Exception ex) {
+        int code = HttpStatus.INTERNAL_SERVER_ERROR.value();
+        return ResponseEntity.status(code).body(new ErrorResponse(code, "Error interno del servidor"));
     }
 }

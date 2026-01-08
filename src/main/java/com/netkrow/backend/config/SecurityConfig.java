@@ -1,60 +1,49 @@
-// src/main/java/com/netkrow/backend/config/SecurityConfig.java
 package com.netkrow.backend.config;
 
-import com.netkrow.backend.security.JwtAuthorizationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+/**
+ * Spring Security (placeholder).
+ *
+ * Para funcional:
+ * - Hoy NO hay login, NO hay usuarios, NO hay roles.
+ * - El MVP está pensado para uso local / equipo.
+ *
+ * Para dev:
+ * - Se deja esto para futuro cuando se “publique” (JWT/SSO/roles).
+ * - Por ahora permitAll() para evitar fricción.
+ */
 @Configuration
 public class SecurityConfig {
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
-        return authConfig.getAuthenticationManager();
-    }
-
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthorizationFilter jwtAuthorizationFilter) throws Exception {
+        // CSRF:
+        // - Protege escenarios con cookies/sesión (web tradicional).
+        // - En APIs tipo “stateless” se suele deshabilitar.
         http
-                .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth
-                        // 1) Público: root y manejador de errores
-                        .requestMatchers("/", "/error", "/favicon.ico").permitAll()
-                        // 2) Público: preflight CORS
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // 3) Público: autenticación y creación/consulta de usuarios
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/users").permitAll()
-                        // 4) Resto de endpoints según roles
-                        .requestMatchers(HttpMethod.POST, "/api/bookings").hasRole("CLIENT")
-                        .requestMatchers(HttpMethod.PUT, "/api/bookings/**").hasAnyRole("CLIENT", "SPECIALIST")
-                        .requestMatchers(HttpMethod.GET, "/api/bookings/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/specialists/**").hasRole("SPECIALIST")
-                        .requestMatchers(HttpMethod.PUT, "/api/specialists/**").hasRole("SPECIALIST")
-                        .requestMatchers(HttpMethod.GET, "/api/specialists/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/reviews").hasRole("CLIENT")
-                        .requestMatchers(HttpMethod.GET, "/api/reviews/**").authenticated()
-                        // 5) Cualquier otra ruta requiere autenticación
-                        .anyRequest().authenticated()
-                )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+            .csrf(csrf -> csrf.disable())
 
-        http.addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
+            // CORS se aplica usando CorsConfig
+            .cors(cors -> {})
+
+            // Reglas: todo permitido (MVP local)
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/", "/error", "/favicon.ico").permitAll()
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/api/rca/**").permitAll()
+                .anyRequest().permitAll()
+            )
+
+            // Sin sesiones
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
         return http.build();
     }
 }
