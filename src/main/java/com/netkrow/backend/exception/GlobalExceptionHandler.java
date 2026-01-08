@@ -10,11 +10,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.sql.SQLException;
 
 /**
- * Manejo global de errores.
- *
- * MVP:
  * - Devuelve JSON estándar: { status, message }
- * - No depende de JPA ni de spring-dao (por eso NO usamos DataIntegrityViolationException).
  */
 @ControllerAdvice
 public class GlobalExceptionHandler {

@@ -4,18 +4,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Respuesta de /backtrace.
+ * Respuesta del backtrace.
  *
- * Para funcional:
- * - routes: “caminos” posibles de invocación (de root a tu service/flow).
- * - transactions: detalles si se encontró una transaction que dispare la ejecución.
- * - mode: DEMO (sin Oracle) o REAL.
+ * - mode:
+ *   Indica si la respuesta es REAL (Oracle) o DEMO (sin conexión a BD).
  *
- * Para dev:
- * - Esta estructura es estable para el Frontend (ReactFlow).
+ * - routes:
+ *   Lista de rutas posibles de invocación.
+ *   Cada ruta es una lista ordenada de nodos desde un root hasta el servicio buscado.
+ *
+ * - transactions:
+ *   Información adicional de transacciones detectadas nodo inicial.
  */
 public class BacktraceResponse {
-    private String mode; // DEMO o REAL
+
+    // Valores esperados: "DEMO" | "REAL"
+    public static final String MODE_DEMO = "DEMO";
+    public static final String MODE_REAL = "REAL";
+
+    private String mode;
     private List<List<RouteNode>> routes = new ArrayList<>();
     private List<TransactionInfo> transactions = new ArrayList<>();
 

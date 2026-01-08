@@ -16,14 +16,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * RcaController (API)
- *
- * Para consultor funcional:
- * - Este archivo define “qué endpoints existen” y qué reciben/devuelven.
- * - No implementa el algoritmo; solo orquesta.
- *
- * Para dev:
- * - Controller debe ser delgado: valida, llama service/repo y retorna.
+ * Define qué endpoints existen y qué reciben/devuelven.
+ * Controller se intenta dejar ligero, valida, llama service y retorna.
  */
 @RestController
 @RequestMapping("/api/rca")
@@ -43,8 +37,7 @@ public class RcaController {
     }
 
     /**
-     * MVP helper:
-     * - Si no hay Oracle configurado y no estamos en demo, devolvemos 503.
+     * Si no hay Oracle configurado y no estamos en demo, devolvemos 503.
      */
     private void ensureOracleConfiguredOrDemo() {
         if (!oracle.isOracleConfigured() && !demoMode) {
@@ -101,13 +94,10 @@ public class RcaController {
     /**
      * POST /api/rca/backtrace
      *
-     * Para funcional:
      * - search: texto a rastrear.
-     * - El resultado son rutas posibles “desde un root” hasta tu search.
-     *
-     * Para dev:
-     * - maxDepth default 15
-     * - maxRoutes 60
+     * - El resultado son rutas posibles “desde un root” hasta el -"search".
+     * - maxDepth default 15 (Cambiar dependiende de lo que se busque)
+     * - maxRoutes 60 (Cambiar dependiende de lo que se busque)
      */
     @PostMapping("/backtrace")
     public BacktraceResponse backtrace(@Valid @RequestBody BacktraceRequest req) {
@@ -117,7 +107,7 @@ public class RcaController {
         int maxDepth = (req.getMaxDepth() == null ? 15 : req.getMaxDepth());
         int maxRoutes = 60;
 
-        // DEMO: no Oracle, respuesta simulada para probar UI/flujo
+        // DEMO: respuesta simulada para pruebas
         if (demoMode || !oracle.isOracleConfigured()) {
             RouteNode tx = new RouteNode("transaction", "SHIPMENT_INVOICE");
             tx.setTransactionKey("SHIPMENT_INVOICE");

@@ -1,23 +1,15 @@
 package com.netkrow.backend.dto;
 
 /**
- * TransactionInfo
- *
- * Datos de una Transaction encontrada como “root” (Sterling):
- * - Se arma con joins entre tablas de configuración:
+ * Datos de una Transaction encontrada como “root”
+ * - Se arma con joins entre tablas de OMNI:
  *   yfs_action -> yfs_invoked_flows -> yfs_flow -> yfs_event_condition -> yfs_event -> yfs_transaction
- *
- * Para consultor funcional:
- * - “Transaction” suele ser el punto donde un evento dispara un flujo (flow).
- * - Esto ayuda a entender desde dónde se inicia una ejecución.
- *
- * Para dev:
+ * - “Transaction” suele ser el punto donde un evento dispara un flujo, esto ayuda a entender desde dónde se inicia una ejecución.
  * - Este DTO representa 1 fila del query findTransactionNodeDetailed().
- * - Los nombres en camelCase se mapean desde columnas en mayúsculas (ej. ACTIONNAME -> actionName).
- */
+  */
 public class TransactionInfo {
 
-    // Flow que está siendo invocado por la acción/transaction (f.flow_name)
+    // Flow que está siendo invocado por la transaction (f.flow_name)
     private String flowName;
 
     // Acción (yfs_action)

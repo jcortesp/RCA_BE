@@ -8,15 +8,9 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 /**
- * OracleClient
- *
- * Para consultor funcional:
- * - Esta clase SOLO abre conexión a la base de datos Oracle.
- * - No contiene lógica de Sterling.
- *
- * Para dev:
- * - Se deja en MVP con DriverManager (simple).
- * - A futuro, si se escala, se podría usar DataSource con pool.
+ * - Esta clase solo abre conexión a la base de datos Oracle.
+ * - No contiene lógica de OMNI.
+ * - Se deja en MVP con DriverManager.
  */
 @Component
 public class OracleClient {
@@ -38,7 +32,7 @@ public class OracleClient {
 
     /**
      * Abre conexión JDBC a Oracle.
-     * - Cada request abre y cierra (MVP).
+     * - Cada request abre y cierra.
      */
     public Connection openConnection() throws SQLException {
         return DriverManager.getConnection(oracleUrl, oracleUser, oraclePassword);

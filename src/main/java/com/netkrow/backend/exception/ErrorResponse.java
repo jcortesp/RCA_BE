@@ -1,12 +1,8 @@
 package com.netkrow.backend.exception;
 
 /**
- * ErrorResponse:
  * - Formato estándar de error para FE:
  *   { "status": 400, "message": "..." }
- *
- * Para funcional:
- * - message es lo que se mostrará en UI.
  */
 public class ErrorResponse {
     private int status;

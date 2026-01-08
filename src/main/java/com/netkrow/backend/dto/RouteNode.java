@@ -6,21 +6,16 @@ import java.util.Map;
 /**
  * RouteNode
  *
- * Para funcional:
- * - Representa un “bloque” del grafo (transaction / flow / service / server).
- * - El front mostrará en "Detalles del nodo" el objeto details (friendly).
- *
- * Para dev:
- * - details está diseñado para NO exponer dumps técnicos (flowMeta/subFlowMeta/joins).
+ * - Representa un bloque del grafo (transaction / flow / service / server).
+ * - El front mostrará en "Detalles del nodo" el objeto details.
  * - El service arma details con subFlowMeta + flowMeta (si existe).
  * - El flow arma details con flowMeta.
- * - La transaction arma details con transaction meta limpio.
+ * - La transaction arma details con transaction meta.
  */
 public class RouteNode {
-    private String type;   // transaction | flow | service | server
+    private String type;   // transaction - flow - service - server
     private String label;  // texto visible
 
-    // Keys básicos (para ubicar en Sterling)
     private String flowName;
     private String flowKey;
     private String subFlowKey;
@@ -29,7 +24,7 @@ public class RouteNode {
     // Transaction
     private String transactionKey;
 
-    // Detalles “amigables” para el Drawer del FE
+    // Detalles para el Drawer del FE
     private Map<String, Object> details = new LinkedHashMap<>();
 
     public RouteNode() {}

@@ -5,10 +5,20 @@ import org.springframework.stereotype.Repository;
 import java.sql.*;
 import java.util.*;
 
+/**
+ * Repositorio de consultas a tablas de Sterling (OMNI) en Oracle.
+ *
+ * Nota MVP:
+ * - Este repo contiene queries específicas a tablas uatconf.
+ * - Se usa para backtrace y metadatos para el Drawer del FE.
+ */
+
 @Repository
 public class SterlingRepository {
-
+    // Longitud del snippet retornado desde el CLOB
     private static final int SNIPPET_LEN = 240;
+
+    // Cuántos caracteres “hacia atrás” desde la posición del match
     private static final int SNIPPET_BACK = 80;
 
     public String pingUser(Connection conn) throws SQLException {
@@ -18,6 +28,9 @@ public class SterlingRepository {
         }
     }
 
+     /**
+     * Ejecuta un SELECT libre (LOCAL).
+     */
     public List<Map<String, Object>> executeSelect(Connection conn, String sql, int maxRows) throws SQLException {
         try (Statement st = conn.createStatement()) {
             st.setMaxRows(maxRows);
@@ -79,7 +92,7 @@ public class SterlingRepository {
         return hits;
     }
 
-    // Flow meta (incluye group name)
+    // Metadatos del flujo
     public Map<String, Object> findFlowMeta(Connection conn, String flowKey) throws SQLException {
         Map<String, Object> result = new LinkedHashMap<>();
         if (flowKey == null || flowKey.trim().isEmpty()) return result;
@@ -107,7 +120,7 @@ public class SterlingRepository {
         return result;
     }
 
-    // Transaction list que invoca un flow (lo de antes)
+    // Transaction list que invoca un flujo
     public List<Map<String, Object>> findTransactionNodeDetailed(Connection conn, String flowName) throws SQLException {
         List<Map<String, Object>> result = new ArrayList<>();
         if (flowName == null || flowName.trim().isEmpty()) return result;
@@ -146,21 +159,11 @@ public class SterlingRepository {
         return result;
     }
 
-    /**
-     * ✅ NUEVO: meta “friendly” de una transaction (para Drawer)
-     *
-     * Querido: serverKey, transactionKey, transactionName, owner, createUserId, createTs, modifyTs
-     *
-     * Nota:
-     * - "transactionName" puede no existir en tu tabla; muchos Sterling solo tienen TRANSACTION_KEY.
-     *   Si no existe, devolvemos transactionName = TRANSACTION_KEY.
-     */
+    //Metadatos de una transaction (para Drawer).
     public Map<String, Object> findTransactionMeta(Connection conn, String transactionKey) throws SQLException {
         Map<String, Object> m = new LinkedHashMap<>();
         if (transactionKey == null || transactionKey.trim().isEmpty()) return m;
 
-        // Si tu schema tiene TRANSACTION_NAME, cámbialo aquí.
-        // Si no existe, deja transaction_name como alias del key.
         String sql =
             "SELECT " +
             "  t.transaction_key AS TRANSACTION_KEY, " +

@@ -1,13 +1,8 @@
 package com.netkrow.backend.dto;
 
 /**
- * SubFlowMeta
- *
- * Para funcional:
- * - “Auditoría” del subflow que contiene el texto buscado (quién/ cuándo)
+ * - Metadatos del subflow que contiene el texto buscado
  * - También incluye matchPos/matchSnippet (por qué apareció)
- *
- * Para dev:
  * - Se arma desde uatconf.yfs_sub_flow (CLOB config_xml)
  */
 public class SubFlowMeta {
@@ -23,8 +18,8 @@ public class SubFlowMeta {
     private Object createTs;
     private String createUserId;
 
-    private Integer matchPos;
-    private String matchSnippet;
+    private Integer matchPos; // Posición del match
+    private String matchSnippet; // Fragmento que causó el match
 
     public String getSubFlowKey() { return subFlowKey; }
     public void setSubFlowKey(String subFlowKey) { this.subFlowKey = subFlowKey; }

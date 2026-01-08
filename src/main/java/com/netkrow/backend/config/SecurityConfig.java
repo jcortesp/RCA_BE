@@ -2,44 +2,31 @@ package com.netkrow.backend.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Spring Security (placeholder).
- *
- * Para funcional:
- * - Hoy NO hay login, NO hay usuarios, NO hay roles.
- * - El MVP está pensado para uso local / equipo.
- *
- * Para dev:
- * - Se deja esto para futuro cuando se “publique” (JWT/SSO/roles).
- * - Por ahora permitAll() para evitar fricción.
+ * Spring Security (placeholder por ahora, no se requiere en LOCAL pero si cuando se quiera subir a la WEB).
+ * - En este MVP no hay login, ni usuarios ni roles.
+ * - Se deja esto para futuro (JWT/SSO/roles).
+ * - Por ahora permitAll().
  */
 @Configuration
 public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-
-        // CSRF:
-        // - Protege escenarios con cookies/sesión (web tradicional).
-        // - En APIs tipo “stateless” se suele deshabilitar.
+        // CSRF: Protege escenarios con cookies/sesiones
+        // En APIs “stateless” se deshabilita.
         http
             .csrf(csrf -> csrf.disable())
 
-            // CORS se aplica usando CorsConfig
+            // CORS se aplica con CorsConfig (CorsConfigurationSource)
             .cors(cors -> {})
 
-            // Reglas: todo permitido (MVP local)
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/error", "/favicon.ico").permitAll()
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/rca/**").permitAll()
-                .anyRequest().permitAll()
-            )
+            // Todo permitido (MVP en local)
+            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
 
             // Sin sesiones
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));

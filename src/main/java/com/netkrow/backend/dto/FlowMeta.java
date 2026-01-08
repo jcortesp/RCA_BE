@@ -1,12 +1,7 @@
 package com.netkrow.backend.dto;
 
 /**
- * FlowMeta
- *
- * Para funcional:
  * - Metadatos del flow (nombre, grupo, proceso, owner)
- *
- * Para dev:
  * - Se arma desde uatconf.yfs_flow
  */
 public class FlowMeta {
@@ -17,7 +12,7 @@ public class FlowMeta {
     private String flowGroupName;
 
     private String createUserId;
-    private Object createTs;   // Timestamp/Date (MVP)
+    private Object createTs; 
     private Object modifyTs;
 
     public String getFlowName() { return flowName; }

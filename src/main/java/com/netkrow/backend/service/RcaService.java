@@ -13,41 +13,68 @@ import java.util.*;
 /**
  * RcaService
  *
- * Para funcional:
- * - Implementa backtrace: rutas padres desde Sterling config.
- *
- * Para dev:
- * - Construye RouteNode.details “friendly” según type.
+ * - Implementa el algoritmo de "backtrace" sobre OMNI buscando rutas posibles desde un “root” hasta el servicio buscado.
+ * retorna:
+ * - routes: lista de rutas (cada ruta es una lista ordenada de RouteNode):
+ *   Transaction -> Flow -> Service (search)
+ * - transactions: lista de TransactionInfo.
  */
 @Service
 public class RcaService {
 
+    /**
+     * Repositorio de queries a tablauatconf.
+     * Aquí está toda la lectura SQL, el service se enfoca en el algoritmo y armado de rutas.
+     */
     private final SterlingRepository repo;
 
     public RcaService(SterlingRepository repo) {
         this.repo = repo;
     }
 
+    /**
+     * Ejecuta backtrace:
+     * - search: servicio a rastrear en config_xml.
+     * - maxDepth: profundidad máxima de búsqueda hacia padres (evita loops).
+     * - maxRoutes: número máximo de rutas a devolver (evita payloads enormes al FE).
+     *
+     * Flujo general:
+     * 1) Encuentra subflows cuyo config_xml contiene 'search'.
+     * 2) Por cada hit, construye el nodo "service".
+     * 3) Recorre recursivamente hacia arriba:
+     *    - agrega el nodo "flow"
+     *    - busca transactions que invocan ese flowName y arma rutas completas.
+     *    - busca subflows “padres” que contengan el flowName para seguir subiendo.
+     */
     public BacktraceResponse backtrace(Connection conn, String search, int maxDepth, int maxRoutes) throws SQLException {
         BacktraceResponse resp = new BacktraceResponse();
-        resp.setMode("REAL");
+        
+        // Modo REAL: se conectó a Oracle y se ejecutó el algoritmo.
 
+        resp.setMode("REAL");
+        
+        // Salida: rutas completas y lista de transactions.
         List<List<RouteNode>> routesOut = new ArrayList<>();
         List<TransactionInfo> txOut = new ArrayList<>();
 
-        // 1) Hits iniciales: subflows que contienen el texto buscado
+        // 1) Hits iniciales: subflows que contienen el texto buscado dentro del CLOB config_xml.
         List<Map<String, Object>> hits = repo.findSubFlowsContainingText(conn, search);
+
+        // Si no hay hits, no hay rutas posibles.
         if (hits.isEmpty()) {
             resp.setRoutes(List.of());
             resp.setTransactions(List.of());
             return resp;
         }
 
+        // Evita loops o recorridos repetidos durante la recursión.
         Set<String> visited = new HashSet<>();
 
+        // Se recorre cada hit (subflow cuyo XML contiene search).
         for (Map<String, Object> hit : hits) {
             if (routesOut.size() >= maxRoutes) break;
 
+            // Identificadores base del hit.
             String flowKey = s(hit.get("flowKey"));
             String serverKey = s(hit.get("serverKey"));
             String subFlowKey = s(hit.get("subFlowKey"));
@@ -57,22 +84,21 @@ public class RcaService {
             String flowName = s(flowMeta.get("FLOW_NAME"));
             String flowGroupName = s(flowMeta.get("FLOW_GROUP_NAME"));
 
-            // ✅ service node = el texto buscado
+            // service node = el texto buscado
             RouteNode serviceNode = new RouteNode("service", search);
             serviceNode.setFlowKey(flowKey);
             serviceNode.setServerKey(serverKey);
             serviceNode.setSubFlowKey(subFlowKey);
             serviceNode.setFlowName(flowName);
 
-            // details friendly para service (usa subFlowMeta + flowMeta)
+            // details para service (usa subFlowMeta + flowMeta)
             serviceNode.setDetails(buildServiceOrFlowDetails(flowName, flowKey, serverKey, flowGroupName));
 
-            // Path: empezamos desde abajo (service), luego iremos agregando parents (flow, transaction)
+            // Path: empieza desde abajo (service), luego se van agregando parents (flow, transaction)
             LinkedList<RouteNode> path = new LinkedList<>();
             path.add(serviceNode);
 
-            // SubFlow meta (source real del service, aunque no se muestre “crudo”)
-            // Si luego quieres mostrar matchSnippet, lo puedes agregar aquí sin exponer todo:
+            // SubFlow meta (source real del service)
             // serviceNode.putDetail("matchPos", hit.get("matchPos"));
             // serviceNode.putDetail("matchSnippet", hit.get("matchSnippet"));
 
@@ -81,11 +107,22 @@ public class RcaService {
             if (routesOut.size() >= maxRoutes) break;
         }
 
+        // Salida final
         resp.setRoutes(routesOut);
         resp.setTransactions(txOut);
         return resp;
     }
 
+    /**
+     * Recorrido recursivo hacia padres:
+     * - Agrega un nodo FLOW al inicio del path.
+     * - Busca TXs que invocan el flowName y arma rutas completas TX -> FLOW -> ... -> SERVICE.
+     * - Busca subflows “padres” cuyo XML contiene flowName y continúa recursión.
+     *
+     * - maxDepth: corta la recursión.
+     * - maxRoutes: corta si ya se juntaron suficientes rutas.
+     * - visited: evita loops / repetición.
+     */
     private void findParentsRecursive(
         Connection conn,
         String flowKey,
@@ -100,9 +137,15 @@ public class RcaService {
         int maxRoutes
     ) throws SQLException {
 
+        // No exceder maxRoutes
         if (routesOut.size() >= maxRoutes) return;
+
+        // No exceder maxDepth
         if (depth >= maxDepth) return;
 
+        /**
+         * - Identifica el estado actual de la recursión.
+         */
         String visitKey = flowKey + "|" + serverKey + "|" + subFlowKey + "|" + depth;
         if (visited.contains(visitKey)) return;
         visited.add(visitKey);
@@ -112,20 +155,24 @@ public class RcaService {
         String flowName = s(flowMeta.get("FLOW_NAME"));
         String flowGroupName = s(flowMeta.get("FLOW_GROUP_NAME"));
 
-        // ✅ Flow node (padre)
+        // Flow node (padre)
         RouteNode flowNode = new RouteNode("flow", flowName.isBlank() ? flowKey : flowName);
         flowNode.setFlowName(flowName);
         flowNode.setFlowKey(flowKey);
         flowNode.setServerKey(serverKey);
         flowNode.setSubFlowKey(subFlowKey);
 
-        // details friendly para flow (usa flowMeta)
+        // details para flow (usa flowMeta)
         flowNode.setDetails(buildServiceOrFlowDetails(flowName, flowKey, serverKey, flowGroupName));
 
-        // Insertamos flow antes del service (para que se vea TX -> FLOW -> SERVICE)
+        // Se inserta flow antes del service (para TX -> FLOW -> SERVICE)
         currentPath.addFirst(flowNode);
 
-        // 1) Transactions que invocan este flowName
+        /**
+         * 1) Transactions que invocan este flowName:
+         * - Si hay flowName, buscamos transacciones que lo invocan.
+         * - Por cada TX encontrada creamos un nodo root "transaction" y armamos una ruta completa TX -> (FLOW -> ... -> SERVICE)
+         */
         if (!flowName.isBlank()) {
             List<Map<String, Object>> txRows = repo.findTransactionNodeDetailed(conn, flowName);
 
@@ -134,16 +181,16 @@ public class RcaService {
 
                 String txKey = s(tx.get("TRANSACTION_KEY"));
 
-                // ✅ Transaction node (root)
+                // Transaction node (root)
                 RouteNode txNode = new RouteNode("transaction", txKey);
                 txNode.setTransactionKey(txKey);
-                txNode.setServerKey(serverKey); // la quieres visible; si no aplica, igual sirve para contexto
+                txNode.setServerKey(serverKey); 
 
-                // Cargar meta limpia de transaction (createTs/modifyTs/etc.)
+                // Cargar meta de transaction
                 Map<String, Object> txMeta = repo.findTransactionMeta(conn, txKey);
                 txNode.setDetails(buildTransactionDetails(serverKey, txMeta));
 
-                // También llenar TransactionInfo (si la usas en otro panel/lista)
+                // Llenar TransactionInfo
                 TransactionInfo ti = new TransactionInfo();
                 ti.setTransactionKey(txKey);
                 ti.setFlowName(flowName);
@@ -176,16 +223,24 @@ public class RcaService {
             }
         }
 
-        // Cleanup: removemos el flowNode agregado
+        /**
+         * Cleanup:
+         * - Removemos el FLOW que se agregó al inicio, para restaurar el path al estado previo.
+         * - Esto evita que el FLOW “se acumule” cuando se regresa de la recursión.
+         */
         if (!currentPath.isEmpty() && "flow".equals(currentPath.getFirst().getType())) {
             currentPath.removeFirst();
         }
     }
 
     // -------------------------
-    // builders friendly (lo que quieres ver en FE)
+    // builders para FE
     // -------------------------
 
+     /**
+     * Details para nodos service/flow.
+     * Mantiene un conjunto pequeño y estable de metadatos que el FE puede mostrar.
+     */
     private Map<String, Object> buildServiceOrFlowDetails(String flowName, String flowKey, String serverKey, String flowGroupName) {
         Map<String, Object> d = new LinkedHashMap<>();
         d.put("flowName", blankToNull(flowName));
@@ -194,7 +249,7 @@ public class RcaService {
         d.put("flowGroupName", blankToNull(flowGroupName));
         return d;
     }
-
+    // Details para nodo transaction.
     private Map<String, Object> buildTransactionDetails(String serverKey, Map<String, Object> txMeta) {
         Map<String, Object> d = new LinkedHashMap<>();
         d.put("serverKey", blankToNull(serverKey));
@@ -207,10 +262,12 @@ public class RcaService {
         return d;
     }
 
+    // helpers
     private static String s(Object v) {
         return v == null ? "" : String.valueOf(v).trim();
     }
 
+    // Normaliza String
     private static String blankToNull(String v) {
         if (v == null) return null;
         String t = v.trim();
